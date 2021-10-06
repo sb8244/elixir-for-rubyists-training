@@ -1,0 +1,209 @@
+# Welcome to Elixir
+
+## Functions & Modules
+
+```elixir
+# This is some setup for future cells.
+require ExUnit.Assertions
+import ExUnit.Assertions
+
+"Welcome to training!"
+```
+
+Functions are the means of "getting things done" in Elixir. Functions are defined 
+inside of a module. Modules are effectively collections of functions built 
+around a common purpose.
+
+Modules are actually a bit more than that, but we'll see more about that later.
+
+I started the skeleton of a basic module and function. You can see that the assertion
+fails right now. Can you make it pass?
+
+```elixir
+defmodule Hello do
+  def greet do
+  end
+end
+
+assert Hello.greet() == "Hello World!"
+```
+
+This next example is all built out for you. In Elixir, you can pass modules
+and functions as arguments into other functions.
+
+This is often used for dependency injection, as it is in the following example.
+The cool thing about this is that you can swap out the module in test to make it
+easier on yourself.
+
+```elixir
+defmodule Printer do
+  def print(message) do
+    IO.puts(message)
+  end
+
+  def print(message, interface) do
+    interface.puts(message)
+  end
+
+  def print_with_defaults(message, interface \\ IO) do
+    interface.puts(message)
+  end
+end
+
+Printer.print("Hello!")
+Printer.print("The IO interface is dynamic now", IO)
+Printer.print_with_defaults("The interface argument is defaulted to IO")
+```
+
+The following test takes advantage of `Printer.print/2`'s second argument to
+mock out the printer interface. Can you create the right function to make the
+test pass? All that the function will need to do is return its argument.
+
+```elixir
+# no touchie
+:code.delete(FakeIO) && :code.purge(FakeIO)
+
+# Define a module called FakeIO
+# Create the right function in FakeIO that makes this test pass
+
+assert Printer.print("message", FakeIO) == "message"
+```
+
+In the `Printer` module, there are a several functions. We refer to 
+these functions using `Module.function/arity` format.
+
+For example, to refer to the print command, we would use `Printer.print/1`
+and `Printer.print/2` notations. `print/1` and `print/2` are different functions,
+they are not "overloaded", a word that is often used in OO languages.
+
+Elixir does have a form of overloading though, although it's much more
+powerful than the same function name with different arity. We'll go over
+pattern matching and how it's used to achieve overloading.
+
+## Pattern Matching
+
+Pattern matching is one of Elixir's super powers. It allows 
+us to write expressive code that's compact and easy to follow.
+
+Let's see a very simple example:
+
+```elixir
+%{foo: foo} = %{foo: :bar}
+foo
+```
+
+```elixir
+%{foo: wont_match} = %{}
+```
+
+In the first example, the assignment clause uses pattern matching to extract
+the `foo` variable from the right-hand clause. The right hand side matches the
+pattern, so everything works and our program makes the assignment.
+
+In the second example, the assignment clause's pattern does not match the
+right hand side. So, we get an error :(
+
+Let's handle that error with a `case` statement:
+
+```elixir
+result = {:ok, %{id: 1, name: "My Widget"}}
+
+case result do
+  {:ok, %{id: id}} ->
+    "Created widget: #{id}"
+
+  _ ->
+    :error
+end
+```
+
+Try changing `result` in the above example to make the `:error` clause trigger.
+We used a special variable `_` to tell the pattern "match anything". Once you have
+the `:error` clause matching, try removing the clause to see what happens.
+
+Let's see a final example of pattern matching. We can actually pattern match in the
+argument list of our functions to make `function/1` do different things based on the
+input arguments.
+
+Take the working tests in the example and make the last example pass, using pattern
+matching only. Do not change any of the existing function heads, but instead make
+a new one.
+
+```elixir
+defmodule TestPatternMatching do
+  def my_function(true) do
+    "The input is true"
+  end
+
+  def my_function(map) when is_map(map) do
+    "The input is a map"
+  end
+
+  def my_function(other) do
+    "Don't know, the input was #{inspect(other)}"
+  end
+end
+
+assert TestPatternMatching.my_function(true) == "The input is true"
+assert TestPatternMatching.my_function(%{a: 1}) == "The input is a map"
+assert TestPatternMatching.my_function(1) == "Don't know, the input was 1"
+assert TestPatternMatching.my_function(%{special: true}) == "This map is special!"
+```
+
+In order to get the previous example to pass, you would need to put the new function
+clause above the map function clause. This is because functions are tried in the order
+that they are defined. If a function head matches your arguments, it will be invoked.
+If a later-defined function also matches, then it's not invoked.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Pattern matching is a core foundation of Elixir. You will see it everywhere.
+We can't cover everything about pattern matching, so you should check out the
+[pattern matching documentation](https://elixir-lang.org/getting-started/pattern-matching.html)
+that's available on https://elixir-lang.org.
+
+The elixir-lang.org tutorials are actually really good, so I suggest going through
+all of them.
+
+## Structs
+
+For the final part of this section, we're going to take a quick look 
+at a commonly used feature of Elixir: Structs.
+
+Structs are maps that have a pre-defined set of keys. Some keys can be 
+required, optional, or defaulted to a value.
+
+Here's a basic struct:
+
+```elixir
+defmodule SMS do
+  @enforce_keys [:to, :content]
+  defstruct @enforce_keys ++ [:delivered_at, status: :pending]
+end
+```
+
+```elixir
+# Make this code compile by reading the error and adjusting the struct values
+%SMS{to: "111-222-3333"}
+```
+
+Elixir is untyped, but structs go a long way in making it feel typed.
+For example, you can use structs in pattern matching to guarantee that
+the input is a certain type.
+
+Make the following test pass by providing a valid map to the `SMSGateway`:
+
+```elixir
+defmodule SMSGateway do
+  def deliver!(sms = %SMS{}) do
+    IO.inspect({:sending, sms})
+    true
+  end
+end
+
+assert SMSGateway.deliver!(%{invalid_map: true})
+```
+
+We aren't going to cover it today, but [Protocols](https://elixir-lang.org/getting-started/protocols.html)
+are related to this technique. They're a great tool to know about and are
+commonly used by Elixir libraries. It's usually hidden away from you, though.
