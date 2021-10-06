@@ -2,6 +2,10 @@ defmodule Datastore.Store.Connection do
   @moduledoc """
   Each connection to a client is a separate process. Any crashes are kept isolated as to not
   affect one another.
+
+  Most commonly, you might use a DynamicSupervisor or TaskSupervisor to implement this pattern.
+  However, we're using spawn/receive to get an example of the underlying process primitive. But,
+  spawn/receive is totally valid as well.
   """
 
   require Logger
