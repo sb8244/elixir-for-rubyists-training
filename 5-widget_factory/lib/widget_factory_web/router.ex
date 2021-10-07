@@ -18,6 +18,13 @@ defmodule WidgetFactoryWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :index
+
+    live "/widgets", WidgetLive.Index, :index
+    live "/widgets/new", WidgetLive.Index, :new
+    live "/widgets/:id/edit", WidgetLive.Index, :edit
+
+    live "/widgets/:id", WidgetLive.Show, :show
+    live "/widgets/:id/show/edit", WidgetLive.Show, :edit
   end
 
   # Other scopes may use custom stacks.
