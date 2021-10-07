@@ -1,0 +1,177 @@
+# More on Processes
+
+## Data Lifecycle
+
+```elixir
+# Setup
+require ExUnit.Assertions
+import ExUnit.Assertions
+```
+
+Processes can completely control the data lifecycle to do whatever we need them
+to do. Let's see an example of this by making a process that updates
+every few seconds.
+
+```elixir
+defmodule ChangingNumber do
+  def init([]) do
+    send(self(), :change)
+    {:ok, 0}
+  end
+
+  def handle_info(:change, _previous_number) do
+    # TODO 2: Use Process.send_after/3 to change the number every 100ms
+    next_number = :rand.uniform(9999)
+    {:noreply, next_number}
+  end
+
+  # TODO 1: The get call fails, make it succeed. It should return the current number
+  def handle_call(_, _, state) do
+    {:noreply, state}
+  end
+
+  def handle_cast(:done, number) do
+    {:stop, :normal, number}
+  end
+end
+
+{:ok, pid} = GenServer.start_link(ChangingNumber, [])
+
+first = GenServer.call(pid, :get)
+Process.sleep(200)
+changed = GenServer.call(pid, :get)
+Process.sleep(200)
+changed2 = GenServer.call(pid, :get)
+
+IO.inspect({first, changed, changed2})
+assert first != changed
+assert changed != changed2
+
+GenServer.cast(pid, :done)
+```
+
+This is fairly contrived, sure. I wanted to include a real-world example of how
+this might play out. The next bit of code is from my product. I commented it to
+try to make it easy to follow:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+defmodule Clove.Hubs.Router.RefreshListenerProcess do
+  use GenServer
+
+  # Fairly normal process, but this is a single global process
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  end
+
+  def init(_) do
+    # When the process starts up, it subscribes to a changed event
+    Phoenix.PubSub.subscribe(Clove.PubSub, "system:hub_page.changed")
+    {:ok, %{}}
+  end
+
+  def handle_info(%{hub_id: id}, state) do
+    # This is a form of dependency injection that makes testing easier
+    get_handler_fn().(id)
+    {:noreply, state}
+  end
+
+  # In test, we don't want to run the router refresh fn except in very specific tests, as it
+  # causes problems with cross-process database calls
+  defp get_handler_fn do
+    Application.get_env(:clove, :router_refresh_listener_fn, &refresh_listener/1)
+  end
+
+  # Runs some code async so that it quickly gets out of the single process.
+  # This helps prevent bottlenecks.
+  defp refresh_listener(hub_id) do
+    Task.start(fn ->
+      hub = Clove.Hubs.get_hub!(hub_id, user: :system)
+      Clove.Hubs.Router.reload_router(hub: hub)
+    end)
+  end
+end
+```
+
+This process doesn't own any data of its own. It's whole purpose is to be the
+lifecycle for another element of the system. The data lifecycle control that Elixir
+gives us makes this a breeze, just a few lines of code. In this case, the changes
+are coming from Phoenix.PubSub, which is an application message bus.
+
+## Data Independence
+
+Things don't always go well in code. Let's make a few bugs to see how processes crash.
+
+```elixir
+defmodule BugServer do
+  def spawn_server(state) do
+    spawn(fn -> loop(state) end)
+  end
+
+  def loop(state) do
+    receive do
+      :crash -> 1 = 0
+      :ok -> IO.inspect({state, "is okay"})
+    end
+
+    loop(state)
+  end
+end
+
+pid = BugServer.spawn_server("first")
+pid2 = BugServer.spawn_server("second")
+
+send(pid, :ok)
+send(pid2, :ok)
+send(pid2, :crash)
+
+# We give it some time to ensure pid is messaged after pid2 has crashed
+Process.sleep(100)
+
+send(pid, :ok)
+send(pid2, :ok)
+```
+
+The two processes that we spawned came from the same code, but otherwise have
+nothing in common with each other. If one of them crashes, the other is unaffected.
+In this example, the "second" process was crashed, but the "first" process reports
+that everything is okay.
+
+<!-- livebook:{"break_markdown":true} -->
+
+In the next example, let's see how we could give up some independence. Use the
+`Process.link/1` function to create a link between the two processes. Then, observe
+that killing the process will also kill the other process.
+
+This example requires some knowledge of how process linking works. The documentation
+says "Starts monitoring the given item from the calling process." Can you use this to
+your advantage to make sure the right processes are linked together?
+
+```elixir
+defmodule LinkServer do
+  def spawn_server(state) do
+    spawn(fn -> loop(state) end)
+  end
+
+  def loop(state) do
+    receive do
+      :crash -> raise "expected"
+      :ok -> IO.inspect({state, "is okay"})
+    end
+
+    loop(state)
+  end
+end
+
+pid = LinkServer.spawn_server("first")
+pid2 = LinkServer.spawn_server("second")
+
+# 1. Link the processes together
+
+send(pid2, :crash) && Process.sleep(100)
+send(pid, :ok)
+send(pid2, :ok)
+
+# You should see nothing printed
+```
