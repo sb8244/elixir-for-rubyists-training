@@ -22,6 +22,7 @@ fails right now. Can you make it pass?
 ```elixir
 defmodule Hello do
   def greet do
+    "Hello World!"
   end
 end
 
@@ -62,6 +63,10 @@ test pass? All that the function will need to do is return its argument.
 ```elixir
 # no touchie
 :code.delete(FakeIO) && :code.purge(FakeIO)
+
+defmodule FakeIO do
+  def puts(msg), do: msg
+end
 
 # Define a module called FakeIO
 # Create the right function in FakeIO that makes this test pass
@@ -135,6 +140,10 @@ defmodule TestPatternMatching do
     "The input is true"
   end
 
+  def my_function(%{special: true}) do
+    "This map is special!"
+  end
+
   def my_function(map) when is_map(map) do
     "The input is a map"
   end
@@ -184,7 +193,7 @@ end
 
 ```elixir
 # Make this code compile by reading the error and adjusting the struct values
-%SMS{to: "111-222-3333"}
+%SMS{to: "111-222-3333", content: "Blah blah"}
 ```
 
 Elixir is untyped, but structs go a long way in making it feel typed.
@@ -201,7 +210,7 @@ defmodule SMSGateway do
   end
 end
 
-assert SMSGateway.deliver!(%{invalid_map: true})
+assert SMSGateway.deliver!(%SMS{to: "1", content: "2"})
 ```
 
 We aren't going to cover it today, but [Protocols](https://elixir-lang.org/getting-started/protocols.html)

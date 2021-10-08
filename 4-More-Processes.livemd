@@ -21,13 +21,14 @@ defmodule ChangingNumber do
 
   def handle_info(:change, _previous_number) do
     # TODO 2: Use Process.send_after/3 to change the number every 100ms
+    Process.send_after(self(), :change, 100)
     next_number = :rand.uniform(9999)
     {:noreply, next_number}
   end
 
   # TODO 1: The get call fails, make it succeed. It should return the current number
-  def handle_call(_, _, state) do
-    {:noreply, state}
+  def handle_call(:get, _, state) do
+    {:reply, state, state}
   end
 
   def handle_cast(:done, number) do
@@ -157,6 +158,7 @@ defmodule LinkServer do
   def loop(state) do
     receive do
       :crash -> raise "expected"
+      {:link, pid} -> Process.link(pid)
       :ok -> IO.inspect({state, "is okay"})
     end
 
@@ -168,10 +170,11 @@ pid = LinkServer.spawn_server("first")
 pid2 = LinkServer.spawn_server("second")
 
 # 1. Link the processes together
+send(pid, {:link, pid2})
 
 send(pid2, :crash) && Process.sleep(100)
 send(pid, :ok)
 send(pid2, :ok)
-
-# You should see nothing printed
+nil
+# You should see a single RuntimeError("expected") and not the "is okay" message
 ```

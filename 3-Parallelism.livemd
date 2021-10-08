@@ -85,8 +85,8 @@ defmodule ReceiveLoop do
     receive do
       {:msg, msg} ->
         IO.puts(msg)
-
-      # What goes here to make it loop?
+        # What goes here to make it loop?
+        loop_receive()
 
       :done ->
         IO.puts("Done!")
@@ -134,9 +134,15 @@ defmodule ExampleServer do
     {:ok, %{count: 0}}
   end
 
-  def handle_call(_msg, _from, state = %{count: count}) do
+  def handle_call(:inc, _from, state = %{count: count}) do
     IO.inspect({:inc, self()})
     next_state = Map.put(state, :count, count + 1)
+    {:reply, next_state.count, next_state}
+  end
+
+  def handle_call(:dec, _from, state = %{count: count}) do
+    IO.inspect({:dec, self()})
+    next_state = Map.put(state, :count, count - 1)
     {:reply, next_state.count, next_state}
   end
 end
