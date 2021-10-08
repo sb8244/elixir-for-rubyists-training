@@ -158,6 +158,64 @@ The solution for this is included in the source code, so you can see what to do 
 
 ## Part 2: Real-time Data Updates
 
+Phoenix provides amazing support for real-time systems out-of-the-box. You can get extremely far with
+what's provided to you, without much headache.
+
+PubSub exposes two main concepts: broadcast and subscribe. It's actually a fairly simple system, although
+it's very powerful. I already added the `subscribe` call in the `Index` view. There is a `handle_info`
+function that reloads the widgets from the database.
+
+I recommend putting your PubSub calls as central as possible. Typically, I'll put these in the relevant context,
+which is `WidgetFactory.Widgets` in this app.
+
+Start the application and open 2 tabs of the Widget list. Add a new widget and check between the tabs. The
+tab that added it has it, but the other does. Modify `Widgets` context to make it so that both tabs stay in
+sync as a widget is added.
+
+### Challenge: Don't hit the DB
+
+Hitting the DB on PubSub calls can sometimes be costly (if the data frequently changes). Try making the
+`handle_info` function update the list without hitting the database. You have everything you need, depending
+on how you solved the previous section.
+
+### Multiple Nodes
+
+Keep your original session of `iex -S mix phx.server` running. Start another shell with `iex -S mix`. In the shell,
+paste the following data:
+
+```elixir
+iex> WidgetFactory.Widgets.create_widget(%{name: "Other shell", type: "important"})
+```
+
+After you create the widget, check the browser...it's not updated.
+
+This shows the challenge of multiple nodes. Right now these nodes are not connected, so they have no way of
+notifying each other of PubSub messages. Let's start them up and connect them together.
+
+Close both shells and run the following (2 shells running when done):
+
+* `iex --name serve@127.0.0.1 -S mix phx.server`
+* `iex --name cli@127.0.0.1 -S mix`
+
+Open the widgets page in multiple tabs. In the `cli` shell, run the following:
+
+```elixir
+iex> Node.list()
+iex> Node.connect(:"serve@127.0.0.1")
+iex> Node.list()
+iex> WidgetFactory.Widgets.create_widget(%{name: Ecto.UUID.generate(), type: "important"})
+```
+
+What happens now in the browser tabs?
+
+This is pretty cool! We connected the two nodes together and they exchanged messages between
+themselves to stay up-to-date.
+
+### Add more updates
+
+If you have time, try adding more real-time updates when a widget is edited. Refresh it in the list
+on the page (with and without the database). Delete it and automatically remove it from the list.
+
 ## Running
 
 To start your Phoenix server:
@@ -209,3 +267,17 @@ This is very useful for building up complex queries that have conditionally appl
 ### D
 
 See `Widgets.solution_list_widgets/1` to see how filters can be applied to the query.
+
+### Real-time
+
+```elixir
+WidgetFactoryWeb.Endpoint.broadcast!("widgets:add", "add", widget)
+```
+
+### Update widgets without DB call
+
+```elixir
+def handle_info(%{event: "add", topic: "widgets:add", payload: widget}, socket = %{assigns: %{widgets: widgets}}) do
+  {:noreply, assign(socket, :widgets, [widget | widgets])}
+end
+```

@@ -18,7 +18,11 @@ defmodule WidgetFactory.Widgets do
 
   """
   def list_widgets() do
-    Repo.all(Widget)
+    from(
+      w in Widget,
+      order_by: [desc: w.id]
+    )
+    |> Repo.all()
   end
 
   @doc """
@@ -28,7 +32,10 @@ defmodule WidgetFactory.Widgets do
   """
   def solution_list_widgets(params) do
     query =
-      (from w in Widget)
+      from(
+        w in Widget,
+        order_by: [desc: w.id]
+      )
       |> solution_add_type(params)
 
     Repo.all(query)
@@ -72,6 +79,7 @@ defmodule WidgetFactory.Widgets do
     %Widget{}
     |> Widget.changeset(attrs)
     |> Repo.insert()
+    |> maybe_broadcast()
   end
 
   @doc """
@@ -120,4 +128,11 @@ defmodule WidgetFactory.Widgets do
   def change_widget(%Widget{} = widget, attrs \\ %{}) do
     Widget.changeset(widget, attrs)
   end
+
+  defp maybe_broadcast(ret = {:ok, widget}) do
+    # TODO: Broadcast an event that's consumed in `WidgetLive.Index`
+    ret
+  end
+
+  defp maybe_broadcast(ret), do: ret
 end

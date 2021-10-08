@@ -6,6 +6,10 @@ defmodule WidgetFactoryWeb.WidgetLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      WidgetFactoryWeb.Endpoint.subscribe("widgets:add")
+    end
+
     {:ok, socket}
   end
 
@@ -38,6 +42,11 @@ defmodule WidgetFactoryWeb.WidgetLive.Index do
     |> assign(:widget, nil)
   end
 
+  def handle_info(%{event: "add", topic: "widgets:add"}, socket = %{assigns: %{params: params}}) do
+    # TODO: Challenge, can you make it live-update without hitting the database?
+    {:noreply, assign(socket, :widgets, list_widgets(params))}
+  end
+
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
     widget = Widgets.get_widget!(id)
@@ -46,6 +55,7 @@ defmodule WidgetFactoryWeb.WidgetLive.Index do
     {:noreply, assign(socket, :widgets, list_widgets(socket.assigns.params))}
   end
 
+  @impl true
   def handle_event("filters.type", %{"type" => type}, socket) do
     params =
       case type do
