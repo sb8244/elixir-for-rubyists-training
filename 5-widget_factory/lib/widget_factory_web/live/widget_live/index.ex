@@ -6,12 +6,18 @@ defmodule WidgetFactoryWeb.WidgetLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, :widgets, list_widgets())}
+    {:ok, socket}
   end
 
   @impl true
   def handle_params(params, _url, socket) do
-    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+    socket =
+      socket
+      |> assign(widgets: list_widgets(params))
+      |> assign(params: params)
+      |> apply_action(socket.assigns.live_action, params)
+
+    {:noreply, socket}
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -37,10 +43,22 @@ defmodule WidgetFactoryWeb.WidgetLive.Index do
     widget = Widgets.get_widget!(id)
     {:ok, _} = Widgets.delete_widget(widget)
 
-    {:noreply, assign(socket, :widgets, list_widgets())}
+    {:noreply, assign(socket, :widgets, list_widgets(socket.assigns.params))}
   end
 
-  defp list_widgets do
+  def handle_event("filters.type", %{"type" => type}, socket) do
+    params =
+      case type do
+        "" -> %{}
+        type -> %{type: type}
+      end
+
+    {:noreply, push_patch(socket, to: Routes.widget_index_path(socket, :index, params))}
+  end
+
+  defp list_widgets(params) do
+    _filters = Map.take(params, ["type"])
+    # Use filters to list the widgets of a given type
     Widgets.list_widgets()
   end
 end

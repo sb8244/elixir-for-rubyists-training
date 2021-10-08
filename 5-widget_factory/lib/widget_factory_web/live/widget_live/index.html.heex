@@ -1,5 +1,13 @@
 <h1>Listing Widgets</h1>
 
+<div style="margin-bottom: 5px;"><i>(Exercise for you)</i></div>
+<div>
+  <button phx-click="filters.type" phx-value-type="">All</button>
+  <button phx-click="filters.type" phx-value-type="important">Important</button>
+  <button phx-click="filters.type" phx-value-type="standard">Standard</button>
+  <button phx-click="filters.type" phx-value-type="custom">Custom</button>
+</div>
+
 <%= if @live_action in [:new, :edit] do %>
   <%= live_modal WidgetFactoryWeb.WidgetLive.FormComponent,
     id: @widget.id || :new,

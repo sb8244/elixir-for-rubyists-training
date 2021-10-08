@@ -146,6 +146,16 @@ the Ecto.Query documentation to figure out what you need.
 
 Take the same query and use `Repo.aggregate/2` to get the count of important widgets.
 
+### Trying it out
+
+Run your app with `iex -S mix phx.server` and load http://localhost:4000/widgets in your browser.
+You will see a list of all of your widgets. You can create, edit, delete, etc.
+
+The filters at the top are left as an exercise for you. You'll see that clicking them changes the
+URL, but nothing happens. Follow the `Index` LiveView and create a query that applies the filters.
+
+The solution for this is included in the source code, so you can see what to do if you get stuck.
+
 ## Part 2: Real-time Data Updates
 
 ## Running
@@ -160,17 +170,23 @@ Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
 ## Solutions
 
+### A
+
 To validate `type` being a certain value, add the following line to the end of `changeset/2`.
 
 ```
 validate_inclusion(:type, ["important", "standard", "custom"])
 ```
 
+### B
+
 To update the widget, use:
 
 ```
 update_cs = Widget.changeset(widget, %{name: "updated"})
 ```
+
+### C
 
 To query for important widgets:
 
@@ -179,3 +195,17 @@ iex> query = (from w in Widget, where: w.type == "important")
 iex> all = WidgetFactory.Repo.all(query)
 iex> length(all)
 ```
+
+You can also build up a query in multiple steps, like so:
+
+```elixir
+iex> query = (from w in Widget)
+iex> query = query |> where([w], w.type == "important")
+iex> WidgetFactory.Repo.all(query)
+```
+
+This is very useful for building up complex queries that have conditionally applied clauses.
+
+### D
+
+See `Widgets.solution_list_widgets/1` to see how filters can be applied to the query.

@@ -17,9 +17,28 @@ defmodule WidgetFactory.Widgets do
       [%Widget{}, ...]
 
   """
-  def list_widgets do
+  def list_widgets() do
     Repo.all(Widget)
   end
+
+  @doc """
+  List widgets with filters applied. The filters are built up dynamically using
+  functions. This is a great thing about Elixir / Ecto.Query, you can generally build
+  up data-structures over time and then apply them in the future.
+  """
+  def solution_list_widgets(params) do
+    query =
+      (from w in Widget)
+      |> solution_add_type(params)
+
+    Repo.all(query)
+  end
+
+  defp solution_add_type(query, %{"type" => type}) do
+    where(query, [w], w.type == ^type)
+  end
+
+  defp solution_add_type(query, _), do: query
 
   @doc """
   Gets a single widget.
